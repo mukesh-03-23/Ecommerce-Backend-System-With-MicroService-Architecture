@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Razorpay Test Payment</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+    <style>
+        body{
+            font-family: Arial, sans-serif;
+            margin:40px;
+        }
+        textarea{
+            width:100%;
+            height:180px;
+            font-size:15px;
+        }
+        button{
+            padding:10px 20px;
+            margin-top:15px;
+            cursor:pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+<h2>Opening Razorpay Checkout...</h2>
+
+<script>
+
+    const payment = JSON.parse(sessionStorage.getItem("paymentData"));
+
+    if (!payment) {
+        alert("Payment details not found.");
+        window.location.href = "index.html";
+    }
+
+    const options = {
+
+        key: "rzp_test_T9GiRVhLD2lWMK",
+
+        amount: payment.amount * 100,
+
+        currency: payment.currency,
+
+        name: "Mukesh Store",
+
+        description: "Order Payment",
+
+        order_id: payment.razorpayorderId,
+
+        handler: function (response) {
+
+            const verifyResponse = {
+
+                razorpayOrderId: response.razorpay_order_id,
+
+                razorpayPaymentId: response.razorpay_payment_id,
+
+                razorpaySignature: response.razorpay_signature
+
+            };
+
+            document.body.innerHTML = `
+                <h1>Payment Successful ✅</h1>
+
+                <p>
+                    Copy the below JSON and use it in
+                    <b>POST /payments/verify</b>
+                </p>
+
+                <textarea id="jsonArea" readonly>
+${JSON.stringify(verifyResponse, null, 4)}
+                </textarea>
+
+                <br>
+
+                <button onclick="copyJson()">
+                    Copy JSON
+                </button>
+            `;
+
+            window.copyJson = function () {
+
+                const text =
+                    document.getElementById("jsonArea").value;
+
+                navigator.clipboard.writeText(text);
+
+                alert("JSON Copied!");
+
+            };
+
+            console.log("Verification JSON");
+            console.log(verifyResponse);
+
+        },
+
+        modal: {
+
+            ondismiss: function () {
+
+                alert("Payment Cancelled");
+
+                window.location.href = "failure.html";
+
+            }
+
+        },
+
+        theme: {
+
+            color: "#3399cc"
+
+        }
+
+    };
+
+    const rzp = new Razorpay(options);
+
+    rzp.open();
+
+</script>
+
+</body>
+</html>

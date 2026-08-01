@@ -380,6 +380,8 @@ I also got practical experience with:
 
 Some features I plan to work on later:
 
+## These are future Improvements not implemented in This project
+
 - Docker and Docker Compose
 - Redis
 - Kafka
@@ -392,4 +394,4 @@ Some features I plan to work on later:
 
 **Mukesh**
 
-B.Tech Graduate | Java Backend Developer
+B.Tech Information Technology | Java Backend Developer

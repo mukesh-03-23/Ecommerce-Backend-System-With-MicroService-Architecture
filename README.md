@@ -22,6 +22,33 @@ I used **OpenFeign** for synchronous communication between services and **Netfli
 - Cloudinary
 - Maven
 
+## problems Solved
+
+### 1. Passing JWT Information Across Microservices
+
+**Problem:** After JWT validation at the API Gateway, microservices needed the authenticated user's information.
+**Solution:** Used `HttpServletRequestWrapper` to add user information as custom request headers before forwarding the request.
+
+### 2. Service-to-Service Communication
+
+**Problem:** Microservices needed to communicate without using fixed IP addresses.
+**Solution:** Used Netflix Eureka for service discovery and OpenFeign for synchronous communication between services.
+
+### 3. Cart Stock Validation
+
+**Problem:** Users should not be able to add more products to the cart than the available stock.
+**Solution:** Cart Service communicates with Product Service to check stock before adding or increasing the product quantity.
+
+### 4. Razorpay Payment Verification
+
+**Problem:** A payment should only be considered successful after verifying the Razorpay payment signature.
+**Solution:** Implemented Razorpay signature verification and updated the payment status only after successful verification.
+
+### 5. Post-Payment Operations
+
+**Problem:** After successful payment, cart, inventory, order and notification services needed to be updated.
+**Solution:** Payment Service communicates with the required services to clear the cart, update inventory, update the order and send confirmation.
+
 ## Project Architecture
 
 The project contains the following services:
@@ -35,50 +62,64 @@ The project contains the following services:
 - Payment Service
 - Notification Service
 
-The basic flow of the application is:
+The API Gateway is the entry point for client requests. Eureka is used for service discovery, so the services can find each other using their registered service names.
+
+The basic architecture is:
 
 ```text
-Client
-   |
-   v
-API Gateway
-   |
-   v
-Eureka Server
-   |
-   +------------------+
-   |                  |
-   v                  v
-User Service      Product Service
-   |
-   |
-   +------ Cart Service
-              |
-              v
-         Order Service
-              |
-              v
-        Payment Service
-              |
-              v
-           Razorpay
-              |
-              v
-     Notification Service
+                         Client
+                           |
+                           v
+                    API Gateway :8080
+                           |
+                     JWT Validation
+                           |
+          +----------------+----------------+
+          |                |                |
+          v                v                v
+    User Service     Product Service    Cart Service
+       :8083              :8081             :8082
+                            |
+                            |
+                            v
+                      Order Service
+                          :8084
+                            |
+                            v
+                     Payment Service
+                          :8085
+                            |
+                     +------+------+
+                     |             |
+                     v             v
+                 Razorpay    Notification
+                               Service
+                                 :8086
+
+                  Eureka Server :8761
+                         |
+              Service Discovery
+                         |
+        +----------------+----------------+
+        |                |                |
+   All Services register with Eureka
 ```
+
+Eureka Server is used for service registration and discovery. Client requests do not pass through Eureka. Instead, services use Eureka to find the location of other services.
 
 ## Services
 
 ### API Gateway
 
-The API Gateway is the entry point for the client requests.
+The API Gateway is the entry point for client requests.
 
 I used it to:
 
 - Route requests to different services
 - Validate JWT tokens
 - Get user information from the JWT
-- Send user information to the required service
+- Send authenticated user information to the required service through request headers
+- Handle CORS
 
 Port: `8080`
 
@@ -135,6 +176,7 @@ Main functionalities:
 - Remove product
 - Get cart
 - Clear cart
+- Stock validation
 
 Port: `8082`
 
@@ -170,13 +212,15 @@ Port: `8085`
 
 This service is responsible for sending notifications such as order confirmation and password-related emails.
 
+It communicates with other services when it needs user, order or product information.
+
 Port: `8086`
 
 ## Communication Between Services
 
-I used **OpenFeign** for synchronous communication.
+I used **OpenFeign** for synchronous communication between the microservices.
 
-For example:
+For example, the Order Service communicates with the Cart, Product and Payment services:
 
 ```text
 Order Service
@@ -188,49 +232,68 @@ Order Service
       +----> Payment Service
 ```
 
-Payment Service communicates with:
+The Payment Service communicates with other services after successful payment verification:
 
 ```text
 Payment Service
       |
-      +----> Order Service
-      |
       +----> Cart Service
+      |
+      +----> Order Service
       |
       +----> Notification Service
 ```
 
-The services are discovered using Eureka.
+The services are discovered using Eureka instead of directly using fixed service IP addresses.
+
+For example:
+
+```text
+ORDER-SERVICE
+      |
+      | OpenFeign
+      v
+CART-SERVICE
+```
 
 ## Authentication
 
-I implemented JWT based authentication.
+I implemented JWT-based authentication.
 
-The basic flow is:
+The basic login flow is:
 
 ```text
-Login
-  |
-  v
-User Service
-  |
-  v
-JWT Token
-  |
-  v
 Client
   |
+  | Login
   v
 API Gateway
   |
   v
-JWT Validation
+User Service
   |
+  | Generate JWT
+  v
+Client
+```
+
+For protected requests:
+
+```text
+Client
+  |
+  | JWT Token
+  v
+API Gateway
+  |
+  | Validate JWT
+  |
+  | Add User Information
   v
 Requested Microservice
 ```
 
-The API Gateway validates the token before allowing requests to protected endpoints.
+The API Gateway validates the JWT token and passes the authenticated user's information to the downstream service through request headers.
 
 ## Payment Flow
 
@@ -289,6 +352,9 @@ Micro-Services/
 ├── README.md
 ├── .gitignore
 │
+├── docs/
+│   └── API-DOCUMENTATION.md
+│
 ├── api-gateway/
 ├── eureka-service/
 ├── user-service/
@@ -316,6 +382,8 @@ Cloudinary credentials
 ```
 
 The `.env` file is added to `.gitignore`, so the actual secrets are not pushed to GitHub.
+
+Before running the project, the required environment variables need to be configured locally.
 
 ## How to Run
 
@@ -350,13 +418,13 @@ Requests can be sent through the API Gateway.
 
 ## API Documentation
 
-API documentation will be available in:
+API documentation is available in:
 
 ```text
 docs/API-DOCUMENTATION.md
 ```
 
-It will contain the endpoints, request details and response examples for the different services.
+It contains the main endpoints, HTTP methods, request details, authentication information and the communication flow between the services.
 
 ## What I Learned From This Project
 
@@ -374,24 +442,22 @@ I also got practical experience with:
 - Eureka
 - API Gateway
 - Payment integration
+- Email notifications
 - Handling communication between multiple services
 
 ## Future Improvements
 
 Some features I plan to work on later:
 
-## These are future Improvements not implemented in This project
-
 - Docker and Docker Compose
 - Redis
 - Kafka
 - Inventory reservation
 - Better error handling between services
-- Testing
+- Automated testing
 - CI/CD
 
 ## Author
 
 **Mukesh**
-
 B.Tech Information Technology | Java Backend Developer

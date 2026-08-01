@@ -2,11 +2,13 @@ package com.mukesh.paymentservice.Configuration;
 
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
+import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
+@Data
 public class RazorpayClientConfig {
     @Value("${razorpay.key.id}")
     public String key_Id;

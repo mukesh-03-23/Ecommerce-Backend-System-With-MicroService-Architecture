@@ -20,7 +20,7 @@ public class ProductController {
     }
 
     @PostMapping("/addproduct")
-    public ResponseEntity<String> addProduct(@RequestPart ProductAddRequest requestDto,@RequestPart MultipartFile image) throws IOException {
+    public ResponseEntity<String> addProduct(@RequestPart("requestDto") ProductAddRequest requestDto,@RequestPart("image") MultipartFile image) throws IOException {
         return new ResponseEntity<>(prodservice.addproduct(requestDto,image), HttpStatus.OK);
     }
     @GetMapping("/getproducts")

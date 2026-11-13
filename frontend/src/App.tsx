@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, Check, ChevronDown, CircleUserRound, Heart, Leaf, LogOut, Menu, Minus, Package, Plus, Search, ShieldCheck, ShoppingBag, ShoppingCart, Sparkles, Truck, Upload, X } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, CircleUserRound, Heart, Leaf, LogOut, Menu, Package, Plus, Search, ShieldCheck, ShoppingBag, Sparkles, Truck, Upload, X } from 'lucide-react';
 import { api, openRazorpay } from './api';
 import { readSession, rupees, saveSession, type Cart, type Order, type Product, type Role, type Session } from './domain';
 

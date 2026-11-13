@@ -9,5 +9,5 @@ import org.springframework.web.bind.annotation.RequestBody;
 @FeignClient(name="NOTIFICATION-SERVICE")
 public interface NotificationClient {
     @PostMapping("/getotp")
-    String getOtp(ForgetPasswordRequest forgetpasswordRequest);
+    String getOtp(@RequestBody ForgetPasswordRequest forgetpasswordRequest);
 }

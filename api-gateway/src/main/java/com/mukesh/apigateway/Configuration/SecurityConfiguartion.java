@@ -47,6 +47,7 @@ public class SecurityConfiguartion {
                        .requestMatchers(HttpMethod.POST,"/payments/createorder").denyAll()
                        .requestMatchers(HttpMethod.POST,"/payments/verify").hasRole("CUSTOMER")
                        .requestMatchers(HttpMethod.GET,"/cart/productIds").denyAll()
+                       .requestMatchers(HttpMethod.GET,"/user/getuser").denyAll()
                        .requestMatchers(HttpMethod.POST, "/send-notification")
                        .denyAll()
                        .anyRequest().authenticated()).build();

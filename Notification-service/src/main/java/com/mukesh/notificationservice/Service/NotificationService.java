@@ -92,7 +92,7 @@ public class NotificationService {
         messageText.append("\n");
         messageText.append(otp);
         messageText.append("\n");
-        messageText.append("This otp expires in 2 mimutes");
+        messageText.append("This OTP expires in 3 minutes");
         message.setText(messageText.toString());
         mailSender.send(message);
         return otp;

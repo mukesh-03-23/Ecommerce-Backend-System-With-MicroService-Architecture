@@ -1,6 +1,10 @@
 # Full-stack verification matrix
 
-**Status: static review and regression coverage added; live integration tests pending.**
+**Status: Java module packaging + focused regression tests and frontend typecheck/build have passed in GitHub Actions. Live integration tests remain pending.**
+
+Read-only live gateway / Eureka verification is supplied in `scripts/smoke-test.mjs`.
+It must be run by the project owner with all services and test DBs running; it is
+not part of CI and has not been executed against live dependencies.
 
 | Layer | Unit/contract coverage | Environment-dependent verification |
 |---|---|---|

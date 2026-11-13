@@ -4,10 +4,13 @@ import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import com.mukesh.productservice.DTO.*;
 import com.mukesh.productservice.Entity.Product;
+import com.mukesh.productservice.Entity.InventoryAdjustment;
 import com.mukesh.productservice.Exceptions.ProductNotFound;
 import com.mukesh.productservice.Repository.ProductRepository;
+import com.mukesh.productservice.Repository.InventoryAdjustmentRepository;
 import com.mukesh.productservice.Utility.MappingDtos;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -20,9 +23,11 @@ import java.util.Map;
 public class ProductService {
     private final Cloudinary cloudinary;
     private final ProductRepository productRepo;
-    public ProductService(Cloudinary cloudinary, ProductRepository productRepo) {
+    private final InventoryAdjustmentRepository adjustments;
+    public ProductService(Cloudinary cloudinary, ProductRepository productRepo, InventoryAdjustmentRepository adjustments) {
         this.cloudinary = cloudinary;
         this.productRepo = productRepo;
+        this.adjustments = adjustments;
     }
     public Map<String,String> addImage(MultipartFile file) throws IOException {
         Map uploaderesult=cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap("folder","ecommerce_products"));
@@ -82,18 +87,23 @@ public class ProductService {
     }
 
 
+    @Transactional
     public String updateInventory(InventoryRequest request){
-       Product pro=productRepo.findById(request.getProductId()).orElseThrow(()->new ProductNotFound());
-       int orderedquantity= request.getOrderquantity();
-       int productquantity=pro.getProductQuantity();
-       if (request.getOrderquantity() == null || orderedquantity <= 0) {
-           throw new IllegalArgumentException("Order quantity must be positive");
+       if (request == null || request.getProductId() == null || request.getOrderquantity() == null
+               || request.getOrderquantity() <= 0 || request.getOrderId() == null
+               || request.getOrderId().isBlank()) {
+           throw new IllegalArgumentException("Order ID, product ID and positive quantity are required");
        }
-       if (productquantity < orderedquantity) {
+       Product pro = productRepo.lockProduct(request.getProductId()).orElseThrow(ProductNotFound::new);
+       String adjustmentId = request.getOrderId() + ":" + request.getProductId();
+       if (adjustments.existsById(adjustmentId)) return "Inventory already updated for this order";
+       int orderedquantity = request.getOrderquantity();
+       if (pro.getProductQuantity() < orderedquantity) {
            throw new IllegalArgumentException("Insufficient stock");
        }
-       pro.setProductQuantity(productquantity-orderedquantity);
+       pro.setProductQuantity(pro.getProductQuantity() - orderedquantity);
        productRepo.save(pro);
+       adjustments.save(new InventoryAdjustment(adjustmentId));
        return "product updated successfully";
     }
     public String deleteproduct(Long product_id){

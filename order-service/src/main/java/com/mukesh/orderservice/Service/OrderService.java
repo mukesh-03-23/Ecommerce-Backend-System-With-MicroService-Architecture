@@ -96,12 +96,17 @@
             return response;
         }
         public String updateInventory(String orderId){
-            Order order=orderrepo.findOrderByOrderId(orderId);
-            List<OrderItem> items=order.getItems();
-            for(OrderItem orderItem:items){
-                InventoryRequest inventoryrequest=new InventoryRequest();
-                inventoryrequest.setOrderquantity(orderItem.getQuantity());
-                inventoryrequest.setProductId(orderItem.getProductId());
+            Order order = orderrepo.findOrderByOrderId(orderId);
+            if (order == null) throw new IllegalArgumentException("Order not found");
+            java.util.Map<Long,Integer> quantities = new java.util.HashMap<>();
+            for (OrderItem item : order.getItems()) {
+                quantities.merge(item.getProductId(), item.getQuantity(), Integer::sum);
+            }
+            for (java.util.Map.Entry<Long,Integer> entry : quantities.entrySet()) {
+                InventoryRequest inventoryrequest = new InventoryRequest();
+                inventoryrequest.setOrderId(orderId);
+                inventoryrequest.setOrderquantity(entry.getValue());
+                inventoryrequest.setProductId(entry.getKey());
                 productClient.UpdateInventory(inventoryrequest);
             }
             return "Inventory updated";

@@ -92,7 +92,7 @@ public class CartService {
     public String clearcart(String email) {
         Cart cart=cartRepository.findByEmail(email).orElse(null);
         if(cart==null){
-            throw new CartNotFoundException();
+            return "Cart already empty";
         }
         cartRepository.deleteCartByEmail(email);
         return "removed successfully";

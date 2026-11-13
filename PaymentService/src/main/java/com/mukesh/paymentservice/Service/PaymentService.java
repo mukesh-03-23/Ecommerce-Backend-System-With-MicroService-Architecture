@@ -38,7 +38,11 @@ public class PaymentService {
 
     public PaymentOrderResponse CreateOrder(PaymentRequest request) throws RazorpayException {
         JSONObject object = new JSONObject();
-        int amountInpaise = (int) (request.getAmount() * 100);
+        if (request == null || request.getAmount() == null || !Double.isFinite(request.getAmount())
+                || request.getAmount() <= 0 || request.getAmount() > Integer.MAX_VALUE / 100.0) {
+            throw new IllegalArgumentException("Invalid payment amount");
+        }
+        int amountInpaise = (int) Math.round(request.getAmount() * 100);
         object.put("amount", amountInpaise);
         object.put("currency", request.getCurrency());
         String receipt = "REC" + request.getOrderId() + "RZ";
@@ -62,26 +66,43 @@ public class PaymentService {
     }
 
     public String verifypayment(VerifyPaymentRequest request) throws RazorpayException {
-        System.out.println("calling verify payment...");
-        JSONObject payload=new JSONObject();
-        payload.put("razorpay_order_id",request.getRazorpayOrderId());
-        payload.put("razorpay_payment_id",request.getRazorpayPaymentId());
-        payload.put("razorpay_signature",request.getRazorpaySignature());
-
-        if(Utils.verifyPaymentSignature(payload,config.secretkey)){
-            Payment payment =paymentRepository.getPaymentByRazorpayOrderId((request.getRazorpayOrderId()));
-            payment.setRazorpayPaymentId(request.getRazorpayPaymentId());
-            payment.setStatus(PaymentStatus.SUCCESS);
-            paymentRepository.save(payment);
-            MessageDetails details =new MessageDetails();
-            details.setOrderId(payment.getOrderId());
-            details.setEmail(payment.getEmail());
-            notificationClient.Orderconfirm(details);
-            cartClient.clearcart(payment.getEmail());
-            orderClient.updateInventory(details.getOrderId());
-            orderClient.UpdatePayment(details.getOrderId());
-            return "payment Done";
+        if (request == null || request.getRazorpayOrderId() == null
+                || request.getRazorpayPaymentId() == null || request.getRazorpaySignature() == null) {
+            throw new IllegalArgumentException("Payment verification details are required");
         }
-        throw new RazorpayException("Payment Failed");
+        JSONObject payload = new JSONObject();
+        payload.put("razorpay_order_id", request.getRazorpayOrderId());
+        payload.put("razorpay_payment_id", request.getRazorpayPaymentId());
+        payload.put("razorpay_signature", request.getRazorpaySignature());
+        if (!Utils.verifyPaymentSignature(payload, config.secretkey)) {
+            throw new RazorpayException("Payment signature verification failed");
+        }
+        Payment payment = paymentRepository.getPaymentByRazorpayOrderId(request.getRazorpayOrderId());
+        if (payment == null) throw new IllegalArgumentException("Payment order not found");
+        if (payment.getStatus() == PaymentStatus.SUCCESS) {
+            if (!request.getRazorpayPaymentId().equals(payment.getRazorpayPaymentId())) {
+                throw new IllegalArgumentException("Payment reference mismatch");
+            }
+            return "Payment already confirmed";
+        }
+        // Preserve existing synchronous Feign sequence. Treat email notification as
+        // post-payment best-effort so SMTP outages do not invalidate verified payments.
+        orderClient.updateInventory(payment.getOrderId());
+        orderClient.UpdatePayment(payment.getOrderId());
+        cartClient.clearcart(payment.getEmail());
+        payment.setRazorpayPaymentId(request.getRazorpayPaymentId());
+        payment.setStatus(PaymentStatus.SUCCESS);
+        paymentRepository.save(payment);
+        MessageDetails details = new MessageDetails();
+        details.setOrderId(payment.getOrderId());
+        details.setEmail(payment.getEmail());
+        try {
+            notificationClient.Orderconfirm(details);
+        } catch (Exception notificationError) {
+            org.slf4j.LoggerFactory.getLogger(PaymentService.class)
+                    .warn("Payment confirmed, but email notification failed for order {}",
+                            payment.getOrderId(), notificationError);
+        }
+        return "payment Done";
     }
 }

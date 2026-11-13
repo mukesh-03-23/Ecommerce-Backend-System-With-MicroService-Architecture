@@ -36,6 +36,11 @@ public class ProductService {
     }
 
     public String addproduct(ProductAddRequest requestDto, MultipartFile image) throws IOException {
+        if (requestDto == null || requestDto.getProductPrice() == null
+                || !Double.isFinite(requestDto.getProductPrice()) || requestDto.getProductPrice() <= 0
+                || requestDto.getProductQuantity() == null || requestDto.getProductQuantity() < 0) {
+            throw new IllegalArgumentException("Valid product price and stock are required");
+        }
         Product pro=new Product();
         pro.setProductName(requestDto.getProductName());
         pro.setProductDescription(requestDto.getProductDescription());
@@ -81,8 +86,11 @@ public class ProductService {
        Product pro=productRepo.findById(request.getProductId()).orElseThrow(()->new ProductNotFound());
        int orderedquantity= request.getOrderquantity();
        int productquantity=pro.getProductQuantity();
-       if(productquantity==0){
-           throw new ProductNotFound();
+       if (request.getOrderquantity() == null || orderedquantity <= 0) {
+           throw new IllegalArgumentException("Order quantity must be positive");
+       }
+       if (productquantity < orderedquantity) {
+           throw new IllegalArgumentException("Insufficient stock");
        }
        pro.setProductQuantity(productquantity-orderedquantity);
        productRepo.save(pro);

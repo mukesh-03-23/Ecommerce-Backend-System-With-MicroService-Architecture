@@ -30,36 +30,41 @@ public class CartService {
         this.productClient = client;
         this.cartItemRepo = cartItemRepo;
     }
-    public String addtocart(String email,AddCartRequest request)  {
-         Cart cart=cartRepository.findByEmail(email).orElse(null);
-         if(cart==null){
-             cart=new Cart();
-             cart.setEmail(email);
-         }
-        ProductResponseDto res =
-                productClient.getproductById(request.getProductId());
-         if(res.getProductQuantity()<=0){
-            throw new OutOfStock();
-         }
-         if(res.getProductQuantity()<request.getQuantity()){
-             throw new ReduceQuantity();
-         }
-        CartItem item = new CartItem();
-        item.setQuantity(request.getQuantity());
-        item.setPrice(res.getProductPrice()* request.getQuantity());
-        item.setProductId(res.getProductId());
+    @Transactional
+    public String addtocart(String email, AddCartRequest request) {
+        if (request == null || request.getProductId() == null || request.getQuantity() == null
+                || request.getQuantity() <= 0) {
+            throw new IllegalArgumentException("A product and a positive quantity are required");
+        }
+        ProductResponseDto product = productClient.getproductById(request.getProductId());
+        if (product == null || product.getProductQuantity() == null
+                || product.getProductPrice() == null || !Double.isFinite(product.getProductPrice())
+                || product.getProductPrice() < 0) {
+            throw new IllegalArgumentException("Invalid product details");
+        }
+        Cart cart = cartRepository.findByEmail(email).orElse(null);
+        if (cart == null) {
+            cart = new Cart();
+            cart.setEmail(email);
+        }
+        CartItem existing = cart.getItems().stream()
+                .filter(item -> item.getProductId().equals(request.getProductId()))
+                .findFirst().orElse(null);
+        long desired = (long) request.getQuantity() + (existing == null ? 0 : existing.getQuantity());
+        if (product.getProductQuantity() <= 0) throw new OutOfStock();
+        if (desired > product.getProductQuantity()) throw new ReduceQuantity();
 
-        cart.additem(item);
-
-        double total = cart.getCarttotal()
-                + res.getProductPrice() * request.getQuantity();
-
+        if (existing == null) {
+            existing = new CartItem();
+            existing.setProductId(request.getProductId());
+            cart.additem(existing);
+        }
+        existing.setQuantity((int) desired);
+        existing.setPrice(product.getProductPrice() * desired);
+        double total = cart.getItems().stream().mapToDouble(CartItem::getPrice).sum();
         cart.setCarttotal(total);
-
         cartRepository.save(cart);
-
-        return "added to cart successfully " + total +
-                " proceed to pay and place order";
+        return "added to cart successfully " + total + " proceed to pay and place order";
     }
 
     public CartResponse getCartByUserId(String email) {

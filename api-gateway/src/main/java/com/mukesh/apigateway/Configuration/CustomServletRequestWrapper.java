@@ -11,11 +11,11 @@ public class CustomServletRequestWrapper extends HttpServletRequestWrapper {
         super(request);
     }
     public void addHeader(String name,String value){
-        customheaders.put(name,value);
+        customheaders.put(name.toLowerCase(Locale.ROOT),value);
     }
     @Override
     public String getHeader(String name){
-        String value=customheaders.get(name);
+        String value=customheaders.get(name.toLowerCase(Locale.ROOT));
         if(value!=null){
             return value;
         }

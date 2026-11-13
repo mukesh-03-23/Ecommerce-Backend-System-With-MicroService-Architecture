@@ -20,6 +20,12 @@ public class CartController {
     public ResponseEntity<String> addtocart(@RequestHeader("useremail") String email, @RequestBody AddCartRequest addCartRequest) {
         return new ResponseEntity<>(cartservice.addtocart(email,addCartRequest), HttpStatus.OK);
     }
+    @GetMapping("/getcart")
+    public ResponseEntity<CartResponse> getMyCart(@RequestHeader("useremail") String email) {
+        return new ResponseEntity<>(cartservice.getCartByUserId(email), HttpStatus.OK);
+    }
+
+    // Internal service-to-service endpoint. Denied to browser clients at the API gateway.
     @GetMapping("/getcart/{email}")
     public ResponseEntity<CartResponse> getcartByEmail(@PathVariable String email) {
         return new ResponseEntity<>(cartservice.getCartByUserId(email),HttpStatus.OK);

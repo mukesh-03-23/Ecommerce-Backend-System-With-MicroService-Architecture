@@ -12,6 +12,8 @@ import com.mukesh.userservice.Repository.OtpRepo;
 import com.mukesh.userservice.Repository.UserRepo;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
 @Service
 public class UserService {
     private final UserRepo userRepo;
@@ -27,6 +29,10 @@ public class UserService {
         this.otprepo = otprepo;
     }
     public String register(RegisterRequest registerRequest) {
+        if (registerRequest == null || registerRequest.getPassword() == null
+                || !registerRequest.getPassword().equals(registerRequest.getConfirmPassword())) {
+            throw new IllegalArgumentException("Passwords do not match");
+        }
         user user=userRepo.findByUseremail(registerRequest.getEmail()).orElse(null);
         if(user!=null){
             throw new UserExisted();
@@ -52,6 +58,7 @@ public class UserService {
         }
     }
 
+    @Transactional
     public void getOtp(ForgetPasswordRequest forgetpasswordRequest) {
         user user=userRepo.findByUseremail(forgetpasswordRequest.getEmail()).orElse(null);
         if(user==null)
@@ -65,6 +72,7 @@ public class UserService {
         dbotp.setOtp(otp);
         otprepo.save(dbotp);
     }
+    @Transactional
     public String resetpassword(ResetPasswordRequest request){
         user user=userRepo.findByUseremail(request.getEmail()).orElse(null);
         if(!request.getPassword().equals(request.getConfirmPassword())){
@@ -80,13 +88,14 @@ public class UserService {
         {
             throw new WrongCredentials();
         }
-        else if(dbotp.getOtp().equals(otp)){
+        else if(dbotp.getExpiry() != null && dbotp.getExpiry().isAfter(LocalDateTime.now())
+                && dbotp.getOtp().equals(otp)){
             user.setPassword(passwordEncoder.encode(request.getPassword()));
             userRepo.save(user);
             otprepo.deleteOtpByEmail(request.getEmail());
             return "password reset successfully";
         }
-        return  "";
+        throw new WrongCredentials();
     }
 
 
